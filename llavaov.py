@@ -11,10 +11,27 @@ from transformers import GenerationConfig
 import os
 import gc
 import pandas as pd
+import av
+import numpy as np
 
 import warnings
 warnings.filterwarnings("ignore")
 
+
+def read_video_pyav(video_path, num_frames):
+    container = av.open(video_path)
+    total_frames = container.streams.video[0].frames
+    indices = np.linspace(0, total_frames - 1, num=num_frames, dtype=int)
+    frames = []
+    container.seek(0)
+    start_index = indices[0]
+    end_index = indices[-1]
+    for i, frame in enumerate(container.decode(video=0)):
+        if i > end_index:
+            break
+        if i >= start_index and i in indices:
+            frames.append(frame)
+    return np.stack([x.to_ndarray(format="rgb24") for x in frames])
 
 
 model_id = "llava-hf/llava-onevision-qwen2-7b-ov-hf"
@@ -33,6 +50,8 @@ choice_token_ids = [tokenizer.encode(choice_id, add_special_tokens=False)[0] for
 
 dataset_path = '../Video-LLaVA/V-MMVP_ft'
 dataset = pd.read_csv(f'{dataset_path}/V-MMVP_ft_final.csv')
+
+num_frames = 16
 
 all_results = []
 total_correct, total_count = 0, 0
@@ -72,7 +91,9 @@ with torch.inference_mode():
 
         prompt = processor.apply_chat_template(conversation, add_generation_prompt=True)
 
-        video_paths = [os.path.join(dataset_path, row['pair_path'], vid) for vid in [row['video1'], row['video2']]]
+        video_paths = [read_video_pyav(os.path.join(dataset_path, row['pair_path'], vid), num_frames) for vid in [row['video1'], row['video2']]]
+
+
 
         inputs1 = processor(images=video_paths[0], text=prompt, return_tensors='pt').to(model.device, torch.bfloat16)
         inputs2 = processor(images=video_paths[1], text=prompt, return_tensors='pt').to(model.device, torch.bfloat16)
