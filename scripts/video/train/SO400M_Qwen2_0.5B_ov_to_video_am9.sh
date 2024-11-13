@@ -2,7 +2,7 @@
 
 # Set up the data folder
 IMAGE_FOLDER="XXX"
-VIDEO_FOLDER="XXX"
+VIDEO_FOLDER="/datasets/VideoGPT/instruction_tuning/Activity_Videos/"
 DATA_YAML="scripts/video/train/data.yaml" # e.g exp.yaml
 
 ############### Prepare Envs #################

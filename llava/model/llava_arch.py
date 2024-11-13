@@ -35,7 +35,7 @@ class LlavaMetaModel:
 
     def __init__(self, config):
         super(LlavaMetaModel, self).__init__(config)
-
+        
         if hasattr(config, "mm_vision_tower"):
             delay_load = getattr(config, "delay_load", False)
             self.vision_tower = build_vision_tower(config, delay_load=delay_load)
@@ -223,11 +223,12 @@ class LlavaMetaForCausalLM(ABC):
         resize_h = int(math.sqrt(image_feature.shape[1]))
         num_frames = image_feature.shape[0]
         feature_dim = image_feature.shape[-1]
-
+        print(image_feature.shape)
         image_feature = image_feature.view(num_frames, 1, resize_h, resize_h, -1)
         image_feature = image_feature.permute(4, 0, 2, 1, 3).contiguous()
         image_feature = image_feature.flatten(1, 2).flatten(2, 3)
         image_feature = torch.cat((image_feature, self.model.image_newline[:, None, None].expand(*image_feature.shape[:-1], 1).to(image_feature.device)), dim=-1)
+        print(image_feature.shape)
         if getattr(self.config, "add_faster_video", False):
             # import pdb; pdb.set_trace()
             # (3584, 832, 14) -> (3584, 64, 13, 14)
@@ -236,6 +237,7 @@ class LlavaMetaForCausalLM(ABC):
             image_feature = image_feature.permute(1, 2, 3, 0).contiguous()
             # (64, 13, 14, 3584) -> (64, 13*14, 3584)
             image_feature = image_feature.flatten(1, 2)
+            print(iamge_feature.shape)
             # import pdb; pdb.set_trace()
             return image_feature
         # import pdb; pdb.set_trace()
@@ -313,6 +315,7 @@ class LlavaMetaForCausalLM(ABC):
                             # Grid-wise
                             image_feature = self.add_token_per_grid(image_feature)
                             if getattr(self.config, "add_faster_video", False):
+                                print('faster_video')
                                 faster_video_feature = self.add_token_per_grid(all_faster_video_features[image_idx])
                                 # Add a token for each frame
                                 concat_slow_fater_token = []
@@ -415,6 +418,8 @@ class LlavaMetaForCausalLM(ABC):
                 raise ValueError(f"Unexpected mm_patch_merge_type: {self.config.mm_patch_merge_type}")
         else:
             image_features = self.encode_images(images)
+
+        print('image_features', image_features[0].shape, len(image_features))
 
         # TODO: image start / end is not implemented here to support pretraining.
         if getattr(self.config, "tune_mm_mlp_adapter", False) and getattr(self.config, "mm_use_im_start_end", False):
